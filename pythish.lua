@@ -5,12 +5,18 @@ local event = require("event")
 local args = {...}
 
 if not args[1] then
-  print("Transpiles (poorly) Python into Lua\n\nUsage: pythish <python file> [lua file]")
+  print("Transpiles (poorly) Python into Lua\n\nUsage:\n  pythish compile <python file> [lua file]\nor\n  pythish run <python file>")
   return
 end
 
-local pyfile = args[1]
-local luafile = args[2] or pyfile .. ".lua"
+local mode = args[1]
+local pyfile = args[2]
+local luafile = args[3] or pyfile .. ".lua"
+
+if mode ~= "compile" and mode ~= "run" then
+  print("Invalid mode: "..tostring(mode).."\nValid modes are: compile, run")
+  return
+end
 
 local pf = io.open(pyfile, "r")
 if not pf then
@@ -18,11 +24,14 @@ if not pf then
   return
 end
 
-local lf = io.open(luafile, "w")
-if not lf then
-  pf:close()
-  print("Cannot open " .. luafile)
-  return
+local lf
+if mode == "compile" then
+  lf = io.open(luafile, "w")
+  if not lf then
+    pf:close()
+    print("Cannot open " .. luafile)
+    return
+  end
 end
 
 local function deindent(line)
@@ -42,7 +51,9 @@ local function deindent(line)
   return line:sub(indlen+1), indlen + tab
 end
 
-print("Transpiling " .. pyfile .. " into " .. luafile)
+if mode == "compile" then
+  print("Transpiling " .. pyfile .. " into " .. luafile)
+end
 
 local lfd = "\n"
 
@@ -76,6 +87,9 @@ while not event.pull(0, "interrupted") do
     for module in line:sub(8):gmatch("[^,]+") do
       module = module:gsub("%s","")
       lline = indent .. "local " .. module .. " = require(\"pythishlib/" .. module .. "\")\n" -- this works 90% of the time 70% of the time
+      if module == "sys" then
+        lline = indent .. "sys.argv = {...}\n" -- moar hacky
+      end
     end
   elseif line:sub(1,4) == "for " or line:sub(1,6) == "while " then
     lline = indent .. line:gsub(":", " do") .. "\n"
@@ -121,7 +135,10 @@ while depth > 0 do
   depth = depth - 1
 end
 
-lf:write("-- transpiled with pythish\nlocal pythish = require(\"pythishlib/pythish\")\n" .. lfd)
-
 pf:close()
-lf:close()
+if mode == "compile" then
+  lf:write("-- transpiled with pythish\nlocal pythish = require(\"pythishlib/pythish\")\n" .. lfd)
+  lf:close()
+elseif mode == "run" then
+  xpcall(load("-- transpiled with pythish\nlocal pythish = require(\"pythishlib/pythish\")\n" .. lfd), error)
+end

@@ -14,4 +14,11 @@ function pythish.range(stop, start, inc)
   return ifunc
 end
 
+pythish.str = tostring
+pythish.float = tonumber
+
+function pythish.int(num)
+  return math.floor(tonumber(num))
+end
+
 return pythish
