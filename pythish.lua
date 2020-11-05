@@ -79,6 +79,9 @@ while not event.pull(0, "interrupted") do
   indent = string.rep(" ", indcount)
   line = line:gsub("#", "--")
   line = line:gsub("!=", "~=")
+  line = line:gsub("True", "true")
+  line = line:gsub("False", "false")
+  line = line:gsub("None", "nil")
   local lline = ""
   for k, v in ipairs(builtins) do
     line = line:gsub("%s"..v.."%(", " pythish."..v.."(")
